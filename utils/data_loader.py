@@ -248,16 +248,24 @@ def process_regional_data(region_name, neb_data_path, geo_save_folder='./geo_fil
     # Load NEB data
     print(f"Loading NEB data from: {neb_data_path}")
     try:
-        if neb_data_path.endswith('.csv'):
-            neb_df = pd.read_csv(neb_data_path)
-        elif neb_data_path.endswith(('.xlsx', '.xls')):
-            neb_df = pd.read_excel(neb_data_path)
-        else:
-            # Try to infer format
-            neb_df = pd.read_csv(neb_data_path)
         
+        neb_df = pd.read_csv(neb_data_path)
+        neb_df['POSTCODE'] = neb_df['postcode']
+        
+        if metric_cols:
+            neb_df=neb_df[['postcode',
+                'region',
+                'oa21cd',
+                'lsoa21cd',
+                'msoa21cd',
+                'ladcd',
+                'lsoa21nm',
+                'msoa21nm',
+                'ladnm',
+                'ladnmw' ] + metric_cols]
         print(f"Loaded NEB data: {len(neb_df)} records")
-        
+        reg_df = neb_df[neb_df['region']==region_name]
+
         # Check if postcode column exists
         postcode_cols = [col for col in neb_df.columns if 'postcode' in col.lower()]
         if not postcode_cols:
@@ -275,7 +283,7 @@ def process_regional_data(region_name, neb_data_path, geo_save_folder='./geo_fil
         print("Creating geo data from postcodes...")
         
         # Get unique postcodes, removing any NaN values
-        unique_postcodes = neb_df[postcode_col].dropna().unique().tolist()
+        unique_postcodes = reg_df[postcode_col].dropna().unique().tolist()
         print(f"Found {len(unique_postcodes)} unique postcodes")
         
         if len(unique_postcodes) == 0:
@@ -301,8 +309,11 @@ def process_regional_data(region_name, neb_data_path, geo_save_folder='./geo_fil
     
     # Combine NEB data with geo data
     print("Combining NEB data with geographic data...")
-    combined_df = neb_df.merge(geo_df, left_on=postcode_col, right_on='POSTCODE', how='left')
-    
+     
+    combined_df = geo_df.merge(reg_df, left_on='POSTCODE',right_on='postcode', how='inner')
+
+    print('Combined data head')
+    print(combined_df.columns.tolist() )
     # Count how many records have geometry
     geo_matched = combined_df['geometry'].notna().sum()
     print(f"Geographic match rate: {geo_matched}/{len(combined_df)} ({geo_matched/len(combined_df)*100:.1f}%)")
@@ -366,7 +377,9 @@ def get_postcode_shapefile(postcodes, path_to_pc_shp_folder='/Volumes/T9/2024_Da
     # Combine all results
     if all_postcode_data:
         combined_gdf = gpd.GeoDataFrame(pd.concat(all_postcode_data, ignore_index=True))
+        
         return combined_gdf
     else:
         # Return empty GeoDataFrame with same structure if no data found
+        print('Error returning empty geo dataframe')
         return gpd.GeoDataFrame(columns=['POSTCODE', 'geometry'])

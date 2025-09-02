@@ -31,3 +31,15 @@ DATA_PATHS = {
     "pc_shapefiles": "/Volumes/T9/2024_Data_downloads/codepoint_polygons_edina/Download_all_postcodes_2378998/codepoint-poly_5267291",
     "geojson_data": "data/geojson_data.json"
 }
+
+REGION_MAPPING = {'EE': "East of England",
+                  'EM': 'East Midlands',
+                  'YH': 'Yorkshire and the Humber',
+                  'LN':'London', 
+                  'WM':'West Midlands',
+                  'SE':"South East",
+                  'SW':"South West",
+                  'WA':'Wales',
+                  'NE':'North East',
+                  'NW':'North West'
+                  }

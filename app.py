@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from utils.data_loader import load_regional_data, load_geojson_data, get_available_regions
+from utils.data_loader import load_regional_data, load_geojson_data, get_available_regions, get_central_lat_lon
 from utils.map_helpers import create_mapbox_fig, get_mapbox_styles
 from utils.checks import check_chloropleth_data 
 from config import MAPBOX_STYLES, DEFAULT_CENTER
@@ -38,12 +38,13 @@ def main():
         index=available_regions.index(default_region) if default_region in available_regions else 0
     )
     
-    # Map style selection
-    map_style = st.sidebar.selectbox(
-        "Select Map Style",
-        options=list(MAPBOX_STYLES.keys()),
-        index=0
-    )
+    # # Map style selection
+    # map_style = st.sidebar.selectbox(
+    #     "Select Map Style",
+    #     options=list(MAPBOX_STYLES.keys()),
+    #     index=0
+    # )
+    map_style='Streets'
     
     # Default metrics with PPI focus
     default_metrics = [ 'num_meters_gas',
@@ -92,13 +93,13 @@ def main():
             help="Metric used for color coding postcode boundaries"
         ) if available_metrics else None
         
-        # Additional metrics for hover
-        hover_metrics = st.sidebar.multiselect(
-            "Additional Hover Metrics",
-            options=[col for col in combined_df.columns if col not in ['geometry', 'POSTCODE', color_metric]],
-            default=[col for col in ['PPI', 'energy_consumption', 'property_value'] if col in combined_df.columns and col != color_metric][:3],
-            help="Additional metrics to show on hover"
-        )
+        # # Additional metrics for hover
+        # hover_metrics = st.sidebar.multiselect(
+        #     "Additional Hover Metrics",
+        #     options=[col for col in combined_df.columns if col not in ['geometry', 'POSTCODE', color_metric]],
+        #     default=[col for col in ['PPI', 'energy_consumption', 'property_value'] if col in combined_df.columns and col != color_metric][:3],
+        #     help="Additional metrics to show on hover"
+        # )
         
         # Ensure we have geo_df for choropleth
         if geo_df is None:
@@ -108,7 +109,7 @@ def main():
 
         # Merge color data with geo data for choropleth
         choropleth_data = geo_df.merge(
-            combined_df[['POSTCODE', color_metric] + hover_metrics].dropna(subset=[color_metric]), 
+            combined_df[['POSTCODE', color_metric] ].dropna(subset=[color_metric]), 
             on='POSTCODE', 
             how='left'
         )
@@ -144,7 +145,7 @@ def main():
             color=color_metric,
             hover_name='POSTCODE',
             featureidkey='properties.POSTCODE',
-            hover_data={**{m: True for m in hover_metrics}, 'POSTCODE': False}, # Hide POSTCODE from the hover data since it's the hover_name
+            hover_data={**{m: True for m in ['POSTCODE', color_metric] }, 'POSTCODE': False}, # Hide POSTCODE from the hover data since it's the hover_name
             color_continuous_scale="viridis",
             opacity=0.9,
             title=f"{region_name} - {color_metric} Distribution by Postcode"
@@ -181,14 +182,13 @@ def main():
         #     margin={"r": 0, "t": 50, "l": 0, "b": 0},
         #     showlegend=True
         # )
-        
+        lat, lon = get_central_lat_lon(region_name)
 
-                # Update layout
         fig.update_layout(
             mapbox=dict(
                 style=MAPBOX_STYLES[map_style],
-                center=dict(lat=52.2104, lon=0.0934),
-                zoom=13,
+                center=dict(lat=lat, lon=lon ),
+                zoom=12,
                 accesstoken=st.secrets["mapbox"]["token"]
             ),
             height=700,

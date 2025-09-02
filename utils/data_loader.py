@@ -131,20 +131,9 @@ def validate_postcode_data(df):
 
 def get_available_regions(geo_save_folder='./geo_files'):
     """Get list of available regions from saved geo files"""
-    try:
-        if not os.path.exists(geo_save_folder):
-            return []
-        
-        regions = []
-        for filename in os.listdir(geo_save_folder):
-            if filename.endswith('_postcodes.geojson'):
-                region_name = filename.replace('_postcodes.geojson', '')
-                regions.append(region_name)
-        
-        return sorted(regions)
-    except Exception as e:
-        st.warning(f"Could not scan for available regions: {e}")
-        return []
+    list_reg = ['EE', 'SW', 'NE', 'NW', 'SE', 'YH', 'WA']
+
+    return  list_reg 
 
 def create_regional_data_from_upload(uploaded_file, region_name=None):
     """
@@ -383,3 +372,38 @@ def get_postcode_shapefile(postcodes, path_to_pc_shp_folder='/Volumes/T9/2024_Da
         # Return empty GeoDataFrame with same structure if no data found
         print('Error returning empty geo dataframe')
         return gpd.GeoDataFrame(columns=['POSTCODE', 'geometry'])
+    
+
+def get_central_lat_lon(region):
+        if region == 'EE':  # East of England
+            lat = 52.2104
+            lon = 0.0934
+        elif region == 'SW':  # South West
+            lat = 50.7236
+            lon = -3.5339
+        elif region == 'SE':  
+            lat = 50.82
+            lon = -0.13
+        elif region == 'NW':  # North West
+            lat =  53.4808
+            lon = -2.2426
+        elif region == 'NE':  # North East
+            lat =  54.9692
+            lon = - 1.6163
+
+        elif region == 'YH':  # Yorkshire and Humber
+            lat = 53.7996
+            lon = -1.551
+            
+        elif region == 'EM':  # East Midlands
+            lat = 52.8382
+            lon = -1.0185
+        elif region == 'WM':  # West Midlands
+            lat = 52.5074
+            lon = -2.1278
+        elif region == 'WA': 
+            
+            lat = 51.481583
+            lon = -3.179090
+
+        return lat, lon

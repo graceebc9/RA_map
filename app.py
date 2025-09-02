@@ -1,9 +1,11 @@
 import streamlit as st
+import numpy as np 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from utils.data_loader import load_regional_data, load_geojson_data, get_available_regions
 from utils.map_helpers import create_mapbox_fig, get_mapbox_styles
+from utils.checks import check_chloropleth_data 
 from config import MAPBOX_STYLES, DEFAULT_CENTER
 import json
 import geopandas as gpd
@@ -102,47 +104,98 @@ def main():
         if geo_df is None:
             st.error("No geographic data available for visualization. The GeoJSON file for this region could not be loaded.")
             return
-        
+        geo_df.to_crs('EPSG:4326', inplace=True)
+
         # Merge color data with geo data for choropleth
         choropleth_data = geo_df.merge(
             combined_df[['POSTCODE', color_metric] + hover_metrics].dropna(subset=[color_metric]), 
             on='POSTCODE', 
             how='left'
         )
-        print('chloro data')
-        print(choropleth_data.columns.tolist() )
-
+        check_chloropleth_data(combined_df, geo_df , choropleth_data, color_metric)
+        
         print('geo_df data')
         print(geo_df.columns.tolist() )
+        print(geo_df.crs )
+
+
+        # First, extract centroids for scatter plot
+        choropleth_data_with_coords = choropleth_data.copy()
+        centroids = choropleth_data_with_coords.geometry.centroid
+        choropleth_data_with_coords['lat'] = centroids.y
+        choropleth_data_with_coords['lon'] = centroids.x
+
+        print(f"Coordinate ranges:")
+        print(f"Lat range: {choropleth_data_with_coords['lat'].min():.4f} to {choropleth_data_with_coords['lat'].max():.4f}")
+        print(f"Lon range: {choropleth_data_with_coords['lon'].min():.4f} to {choropleth_data_with_coords['lon'].max():.4f}")
+
+        # Sample a subset for testing (to avoid overwhelming the map)
+        sample_size = min(500, len(choropleth_data_with_coords))
+        sample_data = choropleth_data_with_coords.sample(n=sample_size, random_state=42)
+        print(f"Using {sample_size} points for scatter test")
+
 
         
         # Create the choropleth map
         fig = px.choropleth_mapbox(
             choropleth_data,
-            geojson=json.loads(geo_df.to_json()),
+            geojson=json.loads(choropleth_data.to_json()),
             locations='POSTCODE',
             color=color_metric,
             hover_name='POSTCODE',
-            featureidkey='POSTCODE',
+            featureidkey='properties.POSTCODE',
             hover_data={**{m: True for m in hover_metrics}, 'POSTCODE': False}, # Hide POSTCODE from the hover data since it's the hover_name
             color_continuous_scale="viridis",
             opacity=0.9,
             title=f"{region_name} - {color_metric} Distribution by Postcode"
         )
+
+               
+        # scatter_trace = px.scatter_mapbox(
+        #     sample_data,
+        #     lat='lat',
+        #     lon='lon',
+        #     color=color_metric,
+        #     hover_name='POSTCODE',
+        #     hover_data=hover_metrics,
+        #     color_continuous_scale="plasma",  # Different color scale to distinguish
+        #     size_max=8,
+        #     opacity=0.8
+        # )
         
-        # Update layout to center on a default postcode (CB3 0DG)
+        # Add the scatter trace to the choropleth figure
+        # for trace in scatter_trace.data:
+        #     trace.name = "Scatter Points"
+        #     trace.showlegend = True
+        #     fig.add_trace(trace)
+
+        # # Update layout to center on a default postcode (CB3 0DG)
+        # fig.update_layout(
+        #     mapbox=dict(
+        #         style=MAPBOX_STYLES[map_style],
+        #         center=dict(lat=52.2104, lon=0.0934), # Coordinates for CB3 0DG
+        #         zoom=13,
+        #         accesstoken=st.secrets["mapbox"]["token"] if "mapbox" in st.secrets else None
+        #     ),
+        #     height=700,
+        #     margin={"r": 0, "t": 50, "l": 0, "b": 0},
+        #     showlegend=True
+        # )
+        
+
+                # Update layout
         fig.update_layout(
             mapbox=dict(
                 style=MAPBOX_STYLES[map_style],
-                center=dict(lat=52.2104, lon=0.0934), # Coordinates for CB3 0DG
+                center=dict(lat=52.2104, lon=0.0934),
                 zoom=13,
-                accesstoken=st.secrets["mapbox"]["token"] if "mapbox" in st.secrets else None
+                accesstoken=st.secrets["mapbox"]["token"]
             ),
             height=700,
             margin={"r": 0, "t": 50, "l": 0, "b": 0},
             showlegend=True
         )
-        
+
         # Display map
         st.plotly_chart(fig, use_container_width=True)
         
